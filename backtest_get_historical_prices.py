@@ -2,7 +2,7 @@
 # INPUT SYMBOLS OR CONIDs AS A LIST
 # ============================================================
 
-symbols = ['RSP', 'SPY']
+symbols = ['bwx', 'igov']
 '''
 ["CWB",
     "ICVT",
@@ -53,14 +53,14 @@ symbols = ['RSP', 'SPY']
 '''
 # conIds = [320106059, 641561653]
 
-filename = "RSP_SPY.csv"
+filename = "bwx igov.csv"
 output_directory_name = "historical prices"
 
 # ============================================================
 # CHOOSE BETWEEN VARIABLE GROUPS
 # ============================================================
 
-lookback_period = "10 Y"
+lookback_period = "30 D"
 length_of_each_period = "1 day"
 use_regular_trading_hours = True
 

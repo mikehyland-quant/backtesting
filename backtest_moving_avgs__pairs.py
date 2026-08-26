@@ -19,7 +19,7 @@ sys.path.append(str(SCRIPT_DIRECTORY.parent))
 prices_path         = SCRIPT_DIRECTORY / "historical prices" / "rsp_spy.csv"
 sorted_symbols_list = ["RSP", "SPY"]
 
-start_date = pd.Timestamp("2024-01-02")
+start_date = pd.Timestamp("2007-01-02")
 end_date   = pd.Timestamp("2026-08-15")
 
 moving_avg_days       = 10
