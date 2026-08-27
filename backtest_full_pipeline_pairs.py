@@ -16,14 +16,15 @@ sys.path.append(str(SCRIPT_DIRECTORY.parent))
 # Keep the anchor symbol last in the list.
 # Use ["long"], ["short"], or ["long", "short"].
 # ============================================================
-prices_path         = SCRIPT_DIRECTORY / "historical prices" / "stat arb prices.csv"
-sorted_symbols_list = ["SPTL", "SCHQ"]
+sorted_symbols_list = ["XLY", "VCR"]
+filename = f"{'_'.join(sorted_symbols_list)}.csv"
+prices_path         = SCRIPT_DIRECTORY / "historical prices" / filename
 
 start_date = pd.Timestamp("2024-01-02")
-end_date   = pd.Timestamp("2024-12-15")
+end_date   = pd.Timestamp("2026-08-15")
 
 moving_avg_days       = 20
-hurdle_step           = 0.0005
+hurdle_step           = 0.0002
 number_of_entry_steps = 10
 annual_borrow_cost    = 0.01  # 1.00% annualized; change as needed
 trade_directions      = ["long", "short"]

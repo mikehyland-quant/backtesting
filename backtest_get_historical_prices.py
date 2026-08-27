@@ -2,7 +2,7 @@
 # INPUT SYMBOLS OR CONIDs AS A LIST
 # ============================================================
 
-symbols = ['bwx', 'igov']
+symbols = ["emb", "emlc", "vwob"]
 '''
 ["CWB",
     "ICVT",
@@ -53,14 +53,14 @@ symbols = ['bwx', 'igov']
 '''
 # conIds = [320106059, 641561653]
 
-filename = "bwx igov.csv"
+filename = f"{'_'.join(symbols)}.csv"
 output_directory_name = "historical prices"
 
 # ============================================================
 # CHOOSE BETWEEN VARIABLE GROUPS
 # ============================================================
 
-lookback_period = "30 D"
+lookback_period = "5 Y"
 length_of_each_period = "1 day"
 use_regular_trading_hours = True
 

@@ -14,13 +14,13 @@ if str(project_root) not in sys.path:
 
 # Keep the anchor last. The anchor is the normalization reference, but any two
 # members (including the anchor) can become the traded min/max legs.
-sorted_symbols_list = ["SPMB",
-                        "VMBS",
-                        "MBB"]
-prices_path = script_directory / "historical prices" / "stat arb prices.csv"
+sorted_symbols_list = ["EMB", "EMLC", "VWOB"]
+
+filename = f"{'_'.join(sorted_symbols_list)}.csv"
+prices_path = script_directory / "historical prices" / filename
 
 start_date = pd.Timestamp("2024-01-02")
-end_date = pd.Timestamp("2024-12-15")
+end_date = pd.Timestamp("2026-08-15")
 
 moving_avg_days = 20
 hurdle_step = 0.0002
