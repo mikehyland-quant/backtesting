@@ -2,58 +2,41 @@
 # INPUT SYMBOLS OR CONIDs AS A LIST
 # ============================================================
 
-symbols = ["emb", "emlc", "vwob"]
-'''
-["CWB",
-    "ICVT",
-    "FALN",
-    "ANGL",
-    "PFFD",
-    "PFF",
-    "VWOB",
-    "EMB",
-    "BNDX",
-    "IAGG",
-    "BWX",
-    "IGOV",
-    "CMF",
-    "VTEC",
-    "SCHH",
-    "USRT",
-    "AGG",
-    "BND",
-    "SCHZ",
-    "SPAB",
-    "CORP",
-    "SPBO",
-    "USIG",
-    "VTC",
-    "HYG",
-    "HYLB",
-    "JNK",
-    "SCYB",
-    "SPHY",
-    "USHY",
-    "MBB",
-    "SPMB",
-    "VMBS",
-    "MUB",
-    "TFI",
-    "VTEB",
-    "IGLB",
-    "SPLB",
-    "VCLT",
-    "SCHQ",
-    "SPTL",
-    "TLT",
-    "VGLT",
-    "RSP",
-    "SPY"
+symbols = [
+"FSTA", 
+"VDC", 
+"XLP", 
+"FENY", 
+"IYE", 
+"VDE", 
+"XLE", 
+"IYF", 
+"VFH", 
+"XLF", 
+"FHLC", 
+"IYH", 
+"VHT", 
+"XLV", 
+"FIDU", 
+"XLI", 
+"FREL", 
+"IYR", 
+"VNQ", 
+"XLRE", 
+"FTEC", 
+"IYW", 
+"VGT", 
+"XLK", 
+"FUTY", 
+"IDU", 
+"VPU", 
+"XLU", 
 ]
-'''
+
 # conIds = [320106059, 641561653]
 
-filename = f"{'_'.join(symbols)}.csv"
+# filename = f"{'_'.join(symbols)}.csv"
+filename = "sectors.csv"
 output_directory_name = "historical prices"
 
 # ============================================================
