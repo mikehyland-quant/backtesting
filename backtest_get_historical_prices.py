@@ -2,41 +2,13 @@
 # INPUT SYMBOLS OR CONIDs AS A LIST
 # ============================================================
 
-symbols = [
-"FSTA", 
-"VDC", 
-"XLP", 
-"FENY", 
-"IYE", 
-"VDE", 
-"XLE", 
-"IYF", 
-"VFH", 
-"XLF", 
-"FHLC", 
-"IYH", 
-"VHT", 
-"XLV", 
-"FIDU", 
-"XLI", 
-"FREL", 
-"IYR", 
-"VNQ", 
-"XLRE", 
-"FTEC", 
-"IYW", 
-"VGT", 
-"XLK", 
-"FUTY", 
-"IDU", 
-"VPU", 
-"XLU", 
-]
+symbols = ['IYJ', 'IYK']
+
 
 # conIds = [320106059, 641561653]
 
 # filename = f"{'_'.join(symbols)}.csv"
-filename = "sectors.csv"
+filename = "sectors2.csv"
 output_directory_name = "historical prices"
 
 # ============================================================
