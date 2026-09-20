@@ -6,11 +6,11 @@ import pandas as pd
 import xlwings as xw
 
 SYMBOL_PAIRS = (  # all of the symbol pairs should be (non-anchor, anchor)
-    ("ITA", "XAR"),
-    ("XBI", "IBB"),  
+    ("KBE", "KBWB"),
+  #  ("XBI", "IBB"),  
 )
 
-DIVIDEND_METHOD = 1  # 0 = SMA, 1 = ADD 1ST DIV BETW EX-DATES, 2 = CUMULATIVE DIVS
+DIVIDEND_METHOD = 0  # 0 = SMA, 1 = ADD 1ST DIV BETW EX-DATES, 2 = CUMULATIVE DIVS
 
 START_DATE = pd.Timestamp("2026-01-01")
 END_DATE = pd.Timestamp("2026-09-14")
@@ -21,7 +21,7 @@ DIVIDEND_MONTHS = range(1, 10)
 BACKTESTING_DIRECTORY = Path(__file__).resolve().parent
 PROJECT_DIRECTORY = BACKTESTING_DIRECTORY.parent
 
-PRICES_PATH = BACKTESTING_DIRECTORY / "historical prices" / "test prices.csv"
+PRICES_PATH = BACKTESTING_DIRECTORY / "historical prices" / "BANKS.csv"
 DATABASE_PATH = (
     PROJECT_DIRECTORY / "trading" / "spreadsheets" / "2026 Fin Inst Database.xlsx"
 )

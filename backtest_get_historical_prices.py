@@ -3,16 +3,14 @@
 # ============================================================
 
 symbols = [
-"XBI",
-"IBB",
-"ITA",
-"XAR",
+"KBE",
+"KBWB",
 ]
 
 # conIds = [320106059, 641561653]
 
 # filename = f"{'_'.join(symbols)}.csv"
-filename = "test prices.csv"
+filename = "BANKS.csv"
 output_directory_name = "historical prices"
 
 # ============================================================
