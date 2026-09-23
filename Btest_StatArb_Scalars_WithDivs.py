@@ -5,10 +5,15 @@ import pandas as pd
 #from sympy import symbols
 import xlwings as xw
 
-SYMBOL_PAIRS = (  # all of the symbol pairs should be (non-anchor, anchor)
-    ("KBE", "KBWB"),
-  #  ("XBI", "IBB"),  
+SYMBOL_GROUPS = (  # all of the symbol pairs should be (non-anchor, anchor)
+  #  ("BF B", "BF A"),
+  #  ("MOG A", "MOG B"),
+  #  ("LEN B", "LEN"),
+  ("TFI", "VTEB", "MUB"), 
+  #("Z", "ZG")
 )
+
+PRICES_FILENAME = "MUNIS" + ".csv"
 
 DIVIDEND_METHOD = 0  # 0 = SMA, 1 = ADD 1ST DIV BETW EX-DATES, 2 = CUMULATIVE DIVS
 
@@ -21,7 +26,7 @@ DIVIDEND_MONTHS = range(1, 10)
 BACKTESTING_DIRECTORY = Path(__file__).resolve().parent
 PROJECT_DIRECTORY = BACKTESTING_DIRECTORY.parent
 
-PRICES_PATH = BACKTESTING_DIRECTORY / "historical prices" / "BANKS.csv"
+PRICES_PATH = BACKTESTING_DIRECTORY / "historical prices" / PRICES_FILENAME
 DATABASE_PATH = (
     PROJECT_DIRECTORY / "trading" / "spreadsheets" / "2026 Fin Inst Database.xlsx"
 )
@@ -41,7 +46,7 @@ def read_excel_table(
 
 def calc_log_rtns(
         frame: pd.DataFrame,
-        symbols: tuple[str, str],
+        symbols: set[str],
     ) -> None:
     for symbol in symbols:
         frame[f"{symbol} log rtn"] = np.log(frame[symbol] / frame[symbol].shift(1))
@@ -49,7 +54,7 @@ def calc_log_rtns(
 
 def get_dividends(
         frame: pd.DataFrame,
-        symbols: tuple[str, str],
+        symbols: set[str],
         dividend_rows: pd.DataFrame,
     ) -> None:
 
@@ -145,13 +150,13 @@ def add_ratio_columns(
                 frame[f"{non_anchor} x {window} dma"] / frame[f"{anchor}"])
 
 
-def build_pair_backtest(
+def build_backtest(
             prices: pd.DataFrame,
             dividend_rows: pd.DataFrame,
-            symbols: tuple[str, str],
+            symbols: set[str],
         ) -> pd.DataFrame:
-    if len(symbols) != 2:
-        raise ValueError(f"Each symbol group must contain two symbols: {symbols}")
+    #if len(symbols) != 2:
+     #   raise ValueError(f"Each symbol group must contain two symbols: {symbols}")
 
     frame = prices.loc[:, ["date", *symbols]].copy()
 
@@ -175,8 +180,8 @@ def main() -> None:
     dividend_rows = database.set_index("symbol")
 
     OUTPUT_DIRECTORY.mkdir(parents=True, exist_ok=True)
-    for symbols in SYMBOL_PAIRS:
-        backtest = build_pair_backtest(prices, dividend_rows, symbols)
+    for symbols in SYMBOL_GROUPS:
+        backtest = build_backtest(prices, dividend_rows, symbols)
         output_path = OUTPUT_DIRECTORY / f"{'_'.join(symbols)}_{DIVIDEND_METHOD}.csv"
         backtest.to_csv(output_path, index=False)
         print(f"Saved {output_path}")
