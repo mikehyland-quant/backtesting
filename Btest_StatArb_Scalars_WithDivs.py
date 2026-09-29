@@ -6,19 +6,16 @@ import pandas as pd
 import xlwings as xw
 
 SYMBOL_GROUPS = (  # all of the symbol pairs should be (non-anchor, anchor)
-  #  ("BF B", "BF A"),
-  #  ("MOG A", "MOG B"),
-  #  ("LEN B", "LEN"),
-  ("TFI", "VTEB", "MUB"), 
-  #("Z", "ZG")
+('XLU', 'IDU'),
+('XLE', 'IYE'),
 )
 
-PRICES_FILENAME = "MUNIS" + ".csv"
+PRICES_FILENAME = "LONG ONEs" + ".csv"
 
-DIVIDEND_METHOD = 0  # 0 = SMA, 1 = ADD 1ST DIV BETW EX-DATES, 2 = CUMULATIVE DIVS
+DIVIDEND_METHOD = 1  # 0 = SMA, 1 = ADD 1ST DIV BETW EX-DATES, 2 = CUMULATIVE DIVS
 
 START_DATE = pd.Timestamp("2026-01-01")
-END_DATE = pd.Timestamp("2026-09-14")
+END_DATE = pd.Timestamp("2026-09-28")
 MOVING_AVERAGE_WINDOWS = (10, 20)
 DIVIDEND_MONTHS = range(1, 10)
 
@@ -125,29 +122,31 @@ def add_ratio_columns(
         ) -> None:
 
     for marker in ("", "*"):
-        non_anchor = f"{symbols[0]}{marker}"
-        anchor = f"{symbols[1]}{marker}"       
-        frame[f"{anchor}/{non_anchor}"] = (
-            frame[f"{anchor}"] / frame[f"{non_anchor}"])
+        anchor = f"{symbols[-1]}{marker}"       
+        for symbol in symbols[:-1]:
+            non_anchor = f"{symbol}{marker}"
 
-        frame[f"{anchor}/{non_anchor} avg"] = frame[f"{anchor}/{non_anchor}"].mean()
+            frame[f"{anchor}/{non_anchor}"] = (
+                frame[f"{anchor}"] / frame[f"{non_anchor}"])
 
-        for window in MOVING_AVERAGE_WINDOWS:
-            frame[f"{anchor}/{non_anchor} {window} dma"] = frame[f"{anchor}/{non_anchor}"].rolling(window).mean()
+            frame[f"{anchor}/{non_anchor} avg"] = frame[f"{anchor}/{non_anchor}"].mean()
 
-        frame[f"{non_anchor} x avg"] = (
-            frame[f"{non_anchor}"] * frame[f"{anchor}/{non_anchor} avg"].shift(1))
-        
-        for window in MOVING_AVERAGE_WINDOWS:
-            frame[f"{non_anchor} x {window} dma"] = (
-                frame[f"{non_anchor}"] * frame[f"{anchor}/{non_anchor} {window} dma"].shift(1))
+            for window in MOVING_AVERAGE_WINDOWS:
+                frame[f"{anchor}/{non_anchor} {window} dma"] = frame[f"{anchor}/{non_anchor}"].rolling(window).mean()
 
-        frame[f'log diff {non_anchor} x avg / {anchor}'] = np.log(
-            frame[f"{non_anchor} x avg"] / frame[f"{anchor}"])
+            frame[f"{non_anchor} x avg"] = (
+                frame[f"{non_anchor}"] * frame[f"{anchor}/{non_anchor} avg"].shift(1))
+            
+            for window in MOVING_AVERAGE_WINDOWS:
+                frame[f"{non_anchor} x {window} dma"] = (
+                    frame[f"{non_anchor}"] * frame[f"{anchor}/{non_anchor} {window} dma"].shift(1))
 
-        for window in MOVING_AVERAGE_WINDOWS:
-            frame[f"log diff {non_anchor} x {window} dma / {anchor}"] = np.log(
-                frame[f"{non_anchor} x {window} dma"] / frame[f"{anchor}"])
+            frame[f'log diff {non_anchor} x avg / {anchor}'] = np.log(
+                frame[f"{non_anchor} x avg"] / frame[f"{anchor}"])
+
+            for window in MOVING_AVERAGE_WINDOWS:
+                frame[f"log diff {non_anchor} x {window} dma / {anchor}"] = np.log(
+                    frame[f"{non_anchor} x {window} dma"] / frame[f"{anchor}"])
 
 
 def build_backtest(

@@ -3,18 +3,16 @@
 # ============================================================
 
 symbols = [
-"TFI", "VTEB", "MUB"
-#"MOG A", "MOG B",
-#"LEN", "LEN B",
-#"BATRA", "BATRK",
-#"Z", "ZG",
-#"SOXX", "SMH"
+'xlu',
+'idu',
+'xle',
+'iye',
 ]
 
 # conIds = [320106059, 641561653]
 
 # filename = f"{'_'.join(symbols)}.csv"
-filename = "MUNIS" + ".csv"
+filename = "long ones" + ".csv"
 output_directory_name = "historical prices"
 
 # ============================================================
