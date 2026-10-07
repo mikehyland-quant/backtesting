@@ -3,16 +3,20 @@
 # ============================================================
 
 symbols = [
-'xlu',
-'idu',
-'xle',
-'iye',
+'FWONA',
+'FWONK',
+'GLIBK',
+'GLIBA',
+'LBTYK',
+'LBTYA',
+'LILAK',
+'LILA',
 ]
 
 # conIds = [320106059, 641561653]
 
 # filename = f"{'_'.join(symbols)}.csv"
-filename = "long ones" + ".csv"
+filename = "LIBERTY" + ".csv"
 output_directory_name = "historical prices"
 
 # ============================================================

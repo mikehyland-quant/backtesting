@@ -6,13 +6,15 @@ import pandas as pd
 import xlwings as xw
 
 SYMBOL_GROUPS = (  # all of the symbol pairs should be (non-anchor, anchor)
-('XLU', 'IDU'),
-('XLE', 'IYE'),
+    ('FWONA', 'FWONK'),
+    ('GLIBK', 'GLIBA'),
+    ('LBTYK', 'LBTYA'),
+    ('LILAK', 'LILA'),
 )
 
-PRICES_FILENAME = "LONG ONEs" + ".csv"
+PRICES_FILENAME = "LIBERTY" + ".csv"
 
-DIVIDEND_METHOD = 1  # 0 = SMA, 1 = ADD 1ST DIV BETW EX-DATES, 2 = CUMULATIVE DIVS
+DIVIDEND_METHOD = 0  # 0 = SMA, 1 = ADD 1ST DIV BETW EX-DATES, 2 = CUMULATIVE DIVS
 
 START_DATE = pd.Timestamp("2026-01-01")
 END_DATE = pd.Timestamp("2026-09-28")
