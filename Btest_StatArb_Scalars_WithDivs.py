@@ -6,18 +6,68 @@ import pandas as pd
 import xlwings as xw
 
 SYMBOL_GROUPS = (  # all of the symbol pairs should be (non-anchor, anchor)
-    ('FWONA', 'FWONK'),
-    ('GLIBK', 'GLIBA'),
-    ('LBTYK', 'LBTYA'),
-    ('LILAK', 'LILA'),
+ ('BSCQ', 'IBDR'), 
+ ('BSJQ', 'IBHF'), 
+ ('BSMQ', 'IBMO'), 
+ ('BSCR', 'IBDS'), 
+ ('BSGR', 'IBTH'), 
+ ('BSJR', 'IBHG'), 
+ ('BSMR', 'IBMP'), 
+ ('BSCS', 'IBDT'), 
+ ('BSJS', 'IBHH'), 
+ ('BSMS', 'IBMQ'), 
+ ('BSTS', 'IBTI'), 
+ ('BSCT', 'IBDU'), 
+ ('BSGT', 'IBTJ'), 
+ ('BSJT', 'IBHI'), 
+ ('BSMT', 'IBMR'), 
+ ('BSCU', 'IBDV'), 
+ ('BSJU', 'IBHJ'), 
+ ('BSMU', 'IBMS'), 
+ ('BSTU', 'IBTK'), 
+ ('BSCV', 'IBDW'), 
+ ('BSJV', 'IBHK'), 
+ ('BSMV', 'IBMT'), 
+ ('BSTV', 'IBTL'), 
+ ('BSCW', 'IBDX'), 
+ ('BSJW', 'IBHL'), 
+ ('BSCX', 'IBDY'), 
+ ('BSCY', 'IBDZ'), 
+ ('BSCZ', 'IBCA'), 
+ ('IEZ', 'OIH'), 
+ ('PXE', 'IEO'), 
+ ('EMLC', 'LEMB'), 
+ ('BWX', 'IGOV'), 
+ ('VWOB', 'EMB'), 
+ ('BNDX', 'IAGG'), 
+ ('CMF', 'VTEC'), 
+ ('CWB', 'ICVT'), 
+ ('EWA', 'FLAU'), 
+ ('EWC', 'BBCA'), 
+ ('EWG', 'FGM'), 
+ ('FALN', 'ANGL'), 
+ ('FLBR', 'EWZ'), 
+ ('FLGB', 'EWU'), 
+ ('FLKR', 'EWY'), 
+ ('FLMX', 'EWW'), 
+ ('FLTW', 'EWT'), 
+ ('FTXR', 'IYT'), 
+ ('IBB', 'BBH'), 
+ ('PFFD', 'PFF'), 
+ ('PJP', 'IHE'), 
+ ('PKB', 'ITB'), 
+ ('PPA', 'ITA'), 
+ ('SPMB', 'VMBS'), 
+ ('TFI', 'MUB'), 
+
 )
 
-PRICES_FILENAME = "LIBERTY" + ".csv"
+PRICES_FILENAME = "oct25" + ".csv"
 
-DIVIDEND_METHOD = 0  # 0 = SMA, 1 = ADD 1ST DIV BETW EX-DATES, 2 = CUMULATIVE DIVS
+DIVIDEND_METHOD = 2  # 0 = SMA, 1 = ADD 1ST DIV BETW EX-DATES, 2 = CUMULATIVE DIVS
 
 START_DATE = pd.Timestamp("2026-01-01")
-END_DATE = pd.Timestamp("2026-09-28")
+END_DATE = pd.Timestamp("2026-10-25")
 MOVING_AVERAGE_WINDOWS = (10, 20)
 DIVIDEND_MONTHS = range(1, 10)
 
@@ -123,7 +173,7 @@ def add_ratio_columns(
             symbols: tuple[str, str],
         ) -> None:
 
-    for marker in ("", "*"):
+    for marker in ("*"):
         anchor = f"{symbols[-1]}{marker}"       
         for symbol in symbols[:-1]:
             non_anchor = f"{symbol}{marker}"
@@ -135,18 +185,18 @@ def add_ratio_columns(
 
             for window in MOVING_AVERAGE_WINDOWS:
                 frame[f"{anchor}/{non_anchor} {window} dma"] = frame[f"{anchor}/{non_anchor}"].rolling(window).mean()
+                '''
+                frame[f"{non_anchor} x avg"] = (
+                    frame[f"{non_anchor}"] * frame[f"{anchor}/{non_anchor} avg"].shift(1))
 
-            frame[f"{non_anchor} x avg"] = (
-                frame[f"{non_anchor}"] * frame[f"{anchor}/{non_anchor} avg"].shift(1))
-            
-            for window in MOVING_AVERAGE_WINDOWS:
+                frame[f'log diff {non_anchor} x avg / {anchor}'] = np.log(
+                    frame[f"{non_anchor} x avg"] / frame[f"{anchor}"])
+                '''
+            # for window in MOVING_AVERAGE_WINDOWS:
                 frame[f"{non_anchor} x {window} dma"] = (
                     frame[f"{non_anchor}"] * frame[f"{anchor}/{non_anchor} {window} dma"].shift(1))
 
-            frame[f'log diff {non_anchor} x avg / {anchor}'] = np.log(
-                frame[f"{non_anchor} x avg"] / frame[f"{anchor}"])
-
-            for window in MOVING_AVERAGE_WINDOWS:
+            # for window in MOVING_AVERAGE_WINDOWS:
                 frame[f"log diff {non_anchor} x {window} dma / {anchor}"] = np.log(
                     frame[f"{non_anchor} x {window} dma"] / frame[f"{anchor}"])
 
@@ -175,15 +225,16 @@ def main() -> None:
 
     database = read_excel_table(
         DATABASE_PATH,
-        sheet_name="Scalar Inputs Table",
-        table_name="scalar_inputs_table",
+        sheet_name="Equity Inputs",
+        table_name="equity_inputs",
     )
-    dividend_rows = database.set_index("symbol")
+    dividend_rows = database.set_index("my_fi_name")
 
     OUTPUT_DIRECTORY.mkdir(parents=True, exist_ok=True)
     for symbols in SYMBOL_GROUPS:
-        backtest = build_backtest(prices, dividend_rows, symbols)
-        output_path = OUTPUT_DIRECTORY / f"{'_'.join(symbols)}_{DIVIDEND_METHOD}.csv"
+        sym = tuple(symbol.upper() for symbol in symbols)
+        backtest = build_backtest(prices, dividend_rows, sym)
+        output_path = OUTPUT_DIRECTORY / f"{'_'.join(sym)}_{DIVIDEND_METHOD}.csv"
         backtest.to_csv(output_path, index=False)
         print(f"Saved {output_path}")
 
