@@ -2,75 +2,23 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-#from sympy import symbols
 import xlwings as xw
 
-SYMBOL_GROUPS = (  # all of the symbol pairs should be (non-anchor, anchor)
- ('BSCQ', 'IBDR'), 
- ('BSJQ', 'IBHF'), 
- ('BSMQ', 'IBMO'), 
- ('BSCR', 'IBDS'), 
- ('BSGR', 'IBTH'), 
- ('BSJR', 'IBHG'), 
- ('BSMR', 'IBMP'), 
- ('BSCS', 'IBDT'), 
- ('BSJS', 'IBHH'), 
- ('BSMS', 'IBMQ'), 
- ('BSTS', 'IBTI'), 
- ('BSCT', 'IBDU'), 
- ('BSGT', 'IBTJ'), 
- ('BSJT', 'IBHI'), 
- ('BSMT', 'IBMR'), 
- ('BSCU', 'IBDV'), 
- ('BSJU', 'IBHJ'), 
- ('BSMU', 'IBMS'), 
- ('BSTU', 'IBTK'), 
- ('BSCV', 'IBDW'), 
- ('BSJV', 'IBHK'), 
- ('BSMV', 'IBMT'), 
- ('BSTV', 'IBTL'), 
- ('BSCW', 'IBDX'), 
- ('BSJW', 'IBHL'), 
- ('BSCX', 'IBDY'), 
- ('BSCY', 'IBDZ'), 
- ('BSCZ', 'IBCA'), 
- ('IEZ', 'OIH'), 
- ('PXE', 'IEO'), 
- ('EMLC', 'LEMB'), 
- ('BWX', 'IGOV'), 
- ('VWOB', 'EMB'), 
- ('BNDX', 'IAGG'), 
- ('CMF', 'VTEC'), 
- ('CWB', 'ICVT'), 
- ('EWA', 'FLAU'), 
- ('EWC', 'BBCA'), 
- ('EWG', 'FGM'), 
- ('FALN', 'ANGL'), 
- ('FLBR', 'EWZ'), 
- ('FLGB', 'EWU'), 
- ('FLKR', 'EWY'), 
- ('FLMX', 'EWW'), 
- ('FLTW', 'EWT'), 
- ('FTXR', 'IYT'), 
- ('IBB', 'BBH'), 
- ('PFFD', 'PFF'), 
- ('PJP', 'IHE'), 
- ('PKB', 'ITB'), 
- ('PPA', 'ITA'), 
- ('SPMB', 'VMBS'), 
- ('TFI', 'MUB'), 
+SYMBOL_GROUPS = (  # Each pair is (lo/non-anchor, hi/anchor).
+
+    ("XLE", "IYE"),
 
 )
 
-PRICES_FILENAME = "oct25" + ".csv"
 
-DIVIDEND_METHOD = 2  # 0 = SMA, 1 = ADD 1ST DIV BETW EX-DATES, 2 = CUMULATIVE DIVS
+PRICES_FILENAME = "oct25.csv"
 
 START_DATE = pd.Timestamp("2026-01-01")
 END_DATE = pd.Timestamp("2026-10-25")
 MOVING_AVERAGE_WINDOWS = (10, 20)
 DIVIDEND_MONTHS = range(1, 10)
 
+COMM_PER_SH = 0.0055
 
 BACKTESTING_DIRECTORY = Path(__file__).resolve().parent
 PROJECT_DIRECTORY = BACKTESTING_DIRECTORY.parent
@@ -82,34 +30,23 @@ DATABASE_PATH = (
 OUTPUT_DIRECTORY = BACKTESTING_DIRECTORY / "backtests"
 
 
-
 def read_excel_table(
-            workbook_path: Path,
-            sheet_name: str,
-            table_name: str,
-        ) -> pd.DataFrame:
+    workbook_path: Path,
+    sheet_name: str,
+    table_name: str,
+) -> pd.DataFrame:
     workbook = xw.Book(workbook_path)
     table = workbook.sheets[sheet_name].tables[table_name]
     return table.range.options(pd.DataFrame, header=1, index=False).value
 
 
-def calc_log_rtns(
-        frame: pd.DataFrame,
-        symbols: set[str],
-    ) -> None:
-    for symbol in symbols:
-        frame[f"{symbol} log rtn"] = np.log(frame[symbol] / frame[symbol].shift(1))
-
-
 def get_dividends(
-        frame: pd.DataFrame,
-        symbols: set[str],
-        dividend_rows: pd.DataFrame,
-    ) -> None:
-
-    rows = {symbol: dividend_rows.loc[symbol] for symbol in symbols}
-
-    for symbol, row in rows.items():
+    frame: pd.DataFrame,
+    symbols: tuple[str, str],
+    dividend_rows: pd.DataFrame,
+) -> None:
+    for symbol in symbols:
+        row = dividend_rows.loc[symbol]
         dividend_output_column = f"{symbol} div"
         frame[dividend_output_column] = 0.0
 
@@ -123,100 +60,132 @@ def get_dividends(
             if pd.isna(ex_date) or pd.isna(amount):
                 continue
 
-            frame.loc[frame["date"].eq(ex_date), dividend_output_column,] = float(amount)
+            frame.loc[frame["date"].eq(ex_date), dividend_output_column] = float(amount)
 
-        frame[f"{symbol} div cumsum"] = frame[f"{symbol} div"].cumsum()
+        frame[f"{symbol} cum div"] = frame[dividend_output_column].cumsum()
 
-    
-def add_dividends(
-        frame: pd.DataFrame,
-        symbols: tuple[str, str],
-        dividend_rows: pd.DataFrame,
-    ) -> None:
 
+def calc_adj_dividends(
+    frame: pd.DataFrame,
+    symbols: tuple[str, str],
+    dividend_rows: pd.DataFrame,
+) -> None:
     for symbol in symbols:
-        frame[f"{symbol} div adjustment"] = 0.0
-            
-    if DIVIDEND_METHOD == 1:
-        rows = {symbol: dividend_rows.loc[symbol] for symbol in symbols}
+        frame[f"{symbol} div adj"] = 0.0
 
-        for month in DIVIDEND_MONTHS:
-            dividend_column = f"div 2026-{month:02d}"
-            ex_date_column = f"{dividend_column} ex-date"
-            ex_dates = {symbol: pd.to_datetime(row[ex_date_column], errors="coerce")
-                        for symbol, row in rows.items()}
-            
-            earlier_symbol = (symbols[0] if ex_dates[symbols[0]] < ex_dates[symbols[1]] else 
-                              symbols[1])
-            later_symbol = next(symbol for symbol in symbols if symbol != earlier_symbol)
+    rows = {symbol: dividend_rows.loc[symbol] for symbol in symbols}
 
-            amount = pd.to_numeric(
-                rows[earlier_symbol][dividend_column], errors="coerce")
+    for month in DIVIDEND_MONTHS:
+        dividend_column = f"div 2026-{month:02d}"
+        ex_date_column = f"{dividend_column} ex-date"
+        ex_dates = {
+            symbol: pd.to_datetime(row[ex_date_column], errors="coerce")
+            for symbol, row in rows.items()
+        }
 
-            if pd.isna(amount):
-                continue
+        lo_sym, hi_sym = symbols
+        earlier_symbol, later_symbol = (
+            (lo_sym, hi_sym) if ex_dates[lo_sym] < ex_dates[hi_sym] else (hi_sym, lo_sym)
+        )
 
-            mask = frame["date"].between(ex_dates[earlier_symbol], 
-                                         ex_dates[later_symbol], inclusive="left")
-            frame.loc[mask, f"{earlier_symbol} div adjustment"] = float(amount)
+        amount = pd.to_numeric(rows[earlier_symbol][dividend_column], errors="coerce")
 
-    elif DIVIDEND_METHOD == 2:
-        for symbol in symbols:
-            frame[f"{symbol} div adjustment"] = frame[f"{symbol} div cumsum"]
+        if pd.isna(amount):
+            continue
 
+        mask = frame["date"].between(
+            ex_dates[earlier_symbol], ex_dates[later_symbol], inclusive="left"
+        )
+        frame.loc[mask, f"{earlier_symbol} div adj"] = float(amount)
+
+
+def calc_prices_with_divs(
+    frame: pd.DataFrame,
+    symbols: tuple[str, str],
+) -> None:
     for symbol in symbols:
-        frame[f"{symbol}*"] = frame[symbol] + frame[f"{symbol} div adjustment"]
+        for suffix in ("div", "div adj", "cum div"):
+            column = f"{symbol} {suffix}"
+            values = frame.pop(column)
+            frame.insert(frame.columns.get_loc(symbol), column, values)
 
-        
+        position = frame.columns.get_loc(symbol) + 1
+        for offset, (suffix, dividend_suffix) in enumerate(
+            (("adj", "div adj"), ("cum", "cum div"))
+        ):
+            frame.insert(
+                position + offset,
+                f"{symbol} {suffix}",
+                frame[symbol] + frame[f"{symbol} {dividend_suffix}"],
+            )
+
+
+def add_scalar_columns(
+    frame: pd.DataFrame,
+    symbols: tuple[str, str],
+) -> None:
+    lo_sym, hi_sym = symbols
+    for suffix in ("", " adj", " cum"):
+        ratio_column = f"{hi_sym}/{lo_sym}{suffix}"
+        ratio = frame[f"{hi_sym}{suffix}"] / frame[f"{lo_sym}{suffix}"]
+        frame[ratio_column] = ratio
+        frame[f"avg scalar{suffix}"] = ratio.mean()
+
+        for window in MOVING_AVERAGE_WINDOWS:
+            frame[f"{window}dma scalar{suffix}"] = ratio.rolling(window).mean()
+
+
 def add_ratio_columns(
-            frame: pd.DataFrame,
-            symbols: tuple[str, str],
-        ) -> None:
+    frame: pd.DataFrame,
+    symbols: tuple[str, str],
+) -> None:
+    lo_sym, hi_sym = symbols
+    for suffix in ("", " adj", " cum"):
+        for window in MOVING_AVERAGE_WINDOWS:
+            scaled_column = f"{lo_sym} * {window}dma{suffix}"
+            frame[scaled_column] = (
+                frame[lo_sym] * frame[f"{window}dma scalar{suffix}"].shift(1)
+            )
+            frame[f"ln({lo_sym} * {window}dma){suffix}/{hi_sym}"] = np.log(
+                frame[scaled_column] / frame[hi_sym]
+            )
 
-    for marker in ("*"):
-        anchor = f"{symbols[-1]}{marker}"       
-        for symbol in symbols[:-1]:
-            non_anchor = f"{symbol}{marker}"
 
-            frame[f"{anchor}/{non_anchor}"] = (
-                frame[f"{anchor}"] / frame[f"{non_anchor}"])
-
-            frame[f"{anchor}/{non_anchor} avg"] = frame[f"{anchor}/{non_anchor}"].mean()
-
-            for window in MOVING_AVERAGE_WINDOWS:
-                frame[f"{anchor}/{non_anchor} {window} dma"] = frame[f"{anchor}/{non_anchor}"].rolling(window).mean()
-                '''
-                frame[f"{non_anchor} x avg"] = (
-                    frame[f"{non_anchor}"] * frame[f"{anchor}/{non_anchor} avg"].shift(1))
-
-                frame[f'log diff {non_anchor} x avg / {anchor}'] = np.log(
-                    frame[f"{non_anchor} x avg"] / frame[f"{anchor}"])
-                '''
-            # for window in MOVING_AVERAGE_WINDOWS:
-                frame[f"{non_anchor} x {window} dma"] = (
-                    frame[f"{non_anchor}"] * frame[f"{anchor}/{non_anchor} {window} dma"].shift(1))
-
-            # for window in MOVING_AVERAGE_WINDOWS:
-                frame[f"log diff {non_anchor} x {window} dma / {anchor}"] = np.log(
-                    frame[f"{non_anchor} x {window} dma"] / frame[f"{anchor}"])
+def calc_log_rtns(
+    frame: pd.DataFrame,
+    symbols: tuple[str, str],
+) -> None:
+    for symbol in symbols:
+        frame[f"{symbol} log rtn"] = np.log((frame[symbol] + frame[f'{symbol} div']) / frame[symbol].shift(1))
+    frame["comm/sh"] = COMM_PER_SH
+    for symbol in symbols:
+        frame[f"{symbol} comm"] = np.log(
+            (frame[symbol] - frame["comm/sh"]) / frame[symbol]
+        )
+    frame["1pct borrow"] = -0.01 * frame["date"].diff().dt.days / 360
 
 
 def build_backtest(
-            prices: pd.DataFrame,
-            dividend_rows: pd.DataFrame,
-            symbols: set[str],
-        ) -> pd.DataFrame:
-    #if len(symbols) != 2:
-     #   raise ValueError(f"Each symbol group must contain two symbols: {symbols}")
+    prices: pd.DataFrame,
+    dividend_rows: pd.DataFrame,
+    symbols: tuple[str, str],
+) -> pd.DataFrame:
+    if len(symbols) != 2:
+        raise ValueError(f"Each symbol group must contain two symbols: {symbols}")
 
     frame = prices.loc[:, ["date", *symbols]].copy()
 
-    calc_log_rtns(frame, symbols)
     get_dividends(frame, symbols, dividend_rows)
-    add_dividends(frame, symbols, dividend_rows)    
+    calc_adj_dividends(frame, symbols, dividend_rows)
+    calc_prices_with_divs(frame, symbols)
+    add_scalar_columns(frame, symbols)
     add_ratio_columns(frame, symbols)
-    return frame
+    calc_log_rtns(frame, symbols)
 
+    lo_sym, hi_sym = symbols
+    frame["ex-date"] = (frame[f"{lo_sym} div"] > 0) | (frame[f"{hi_sym} div"] > 0)
+
+    return frame
 
 
 def main() -> None:
@@ -232,9 +201,10 @@ def main() -> None:
 
     OUTPUT_DIRECTORY.mkdir(parents=True, exist_ok=True)
     for symbols in SYMBOL_GROUPS:
-        sym = tuple(symbol.upper() for symbol in symbols)
-        backtest = build_backtest(prices, dividend_rows, sym)
-        output_path = OUTPUT_DIRECTORY / f"{'_'.join(sym)}_{DIVIDEND_METHOD}.csv"
+        lo_sym, hi_sym = symbols
+        pair = (lo_sym.upper(), hi_sym.upper())
+        backtest = build_backtest(prices, dividend_rows, pair)
+        output_path = OUTPUT_DIRECTORY / f"{'_'.join(pair)}.csv"
         backtest.to_csv(output_path, index=False)
         print(f"Saved {output_path}")
 
