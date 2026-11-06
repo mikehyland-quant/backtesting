@@ -6,12 +6,12 @@ import xlwings as xw
 
 SYMBOL_GROUPS = (  # Each pair is (lo/non-anchor, hi/anchor).
 
-    ("XLE", "IYE"),
+('KBE','KRE'),
 
 )
 
 
-PRICES_FILENAME = "oct25.csv"
+PRICES_FILENAME = "NOV 3.csv"
 
 START_DATE = pd.Timestamp("2026-01-01")
 END_DATE = pd.Timestamp("2026-10-25")
@@ -142,12 +142,12 @@ def add_ratio_columns(
     lo_sym, hi_sym = symbols
     for suffix in ("", " adj", " cum"):
         for window in MOVING_AVERAGE_WINDOWS:
-            scaled_column = f"{lo_sym} * {window}dma{suffix}"
+            scaled_column = f"{lo_sym}{suffix} * {window}dma{suffix}"
             frame[scaled_column] = (
-                frame[lo_sym] * frame[f"{window}dma scalar{suffix}"].shift(1)
+                frame[f"{lo_sym}{suffix}"] * frame[f"{window}dma scalar{suffix}"].shift(1)
             )
-            frame[f"ln({lo_sym} * {window}dma){suffix}/{hi_sym}"] = np.log(
-                frame[scaled_column] / frame[hi_sym]
+            frame[f"ln({lo_sym} * {window}dma){suffix}/{hi_sym}{suffix}"] = np.log(
+                frame[scaled_column] / frame[f"{hi_sym}{suffix}"]
             )
 
 
@@ -189,8 +189,16 @@ def build_backtest(
 
 
 def main() -> None:
+    xlsx_folder = Path(r"C:\Users\micha\OneDrive\My Trading Data")
+    template_file = xlsx_folder / "TEMPLATE.xlsx"
+
+    if not template_file.is_file():
+        raise FileNotFoundError(f"Template does not exist: {template_file}")
+
     prices = pd.read_csv(PRICES_PATH, parse_dates=["date"])
-    prices = prices.loc[prices["date"].between(START_DATE, END_DATE)].copy()
+    prices = prices.loc[
+        prices["date"].between(START_DATE, END_DATE)
+    ].copy()
 
     database = read_excel_table(
         DATABASE_PATH,
@@ -199,14 +207,28 @@ def main() -> None:
     )
     dividend_rows = database.set_index("my_fi_name")
 
-    OUTPUT_DIRECTORY.mkdir(parents=True, exist_ok=True)
-    for symbols in SYMBOL_GROUPS:
-        lo_sym, hi_sym = symbols
-        pair = (lo_sym.upper(), hi_sym.upper())
-        backtest = build_backtest(prices, dividend_rows, pair)
-        output_path = OUTPUT_DIRECTORY / f"{'_'.join(pair)}.csv"
-        backtest.to_csv(output_path, index=False)
-        print(f"Saved {output_path}")
+    with xw.App(visible=True, add_book=False) as app:
+        for symbols in SYMBOL_GROUPS:
+            pair = tuple(symbol.upper() for symbol in symbols)
+            pair_name = "_".join(pair)
+
+            print(f"Processing: {pair_name}", flush=True)
+            df = build_backtest(prices, dividend_rows, pair)
+
+            wb = app.books.open(str(template_file))
+            try:
+                wb.sheets["input"].range("A1").options(
+                    index=False,
+                    header=True,
+                ).value = df
+
+                app.calculate()
+
+                output_file = xlsx_folder / f"{pair_name}2.xlsx"
+                wb.save(str(output_file))
+                print(f"Saved: {output_file}", flush=True)
+            finally:
+                wb.close()
 
 
 if __name__ == "__main__":
