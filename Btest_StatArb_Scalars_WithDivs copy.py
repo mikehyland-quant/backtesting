@@ -7,14 +7,14 @@ import xlwings as xw
 
 PRICES_FILENAME = "NOV 5.csv"
 SYMBOL_GROUPS = (
-    ("VPU", "IDU", "FUTY", "XLU"),
+    ("VGT", "XLK", "IYW", "FTEC"),
 )
 
-MOVING_AVERAGE_WINDOW = 10
-INDICATOR_THRESHOLD = 0.20
+MOVING_AVERAGE_WINDOW = 20
+INDICATOR_THRESHOLDS = (0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40, 0.45, 0.50)
 
 START_DATE = pd.Timestamp("2026-01-01")
-END_DATE = pd.Timestamp("2026-10-25")
+END_DATE = pd.Timestamp("2026-11-01")
 
 COMM_PER_SH = 0.0055
 DIVIDEND_MONTHS = range(1, END_DATE.month + 1)
@@ -33,29 +33,29 @@ def read_excel_table(
     sheet_name: str,
     table_name: str,
 ) -> pd.DataFrame:
-    
+
     workbook = xw.Book(workbook_path)
     table = workbook.sheets[sheet_name].tables[table_name]
     return table.range.options(pd.DataFrame, header=1, index=False).value
 
 
-def get_dividends(
+def add_dividends(
     frame: pd.DataFrame,
     symbols: tuple[str, ...],
     dividend_rows: pd.DataFrame,
 ) -> None:
-    
+
     for symbol in symbols:
         row = dividend_rows.loc[symbol]
         dividend_output_column = f"{symbol} div"
         frame[dividend_output_column] = 0.0
 
         for month in DIVIDEND_MONTHS:
-            get_dividend_column = f"div 2026-{month:02d}"
-            get_ex_date_column = f"{get_dividend_column} ex-date"
+            dividend_column = f"div 2026-{month:02d}"
+            ex_date_column = f"{dividend_column} ex-date"
 
-            ex_date = pd.to_datetime(row[get_ex_date_column], errors="coerce")
-            amount = pd.to_numeric(row[get_dividend_column], errors="coerce")
+            ex_date = pd.to_datetime(row[ex_date_column], errors="coerce")
+            amount = pd.to_numeric(row[dividend_column], errors="coerce")
 
             if pd.isna(ex_date) or pd.isna(amount):
                 continue
@@ -68,11 +68,15 @@ def build_base_df(
     dividend_rows: pd.DataFrame,
     symbols: tuple[str, ...],
 ) -> tuple[tuple[str, ...], pd.DataFrame]:
-    
-    base_df = prices.loc[:, ["date", *symbols]].copy()
-    get_dividends(base_df, symbols, dividend_rows)
 
-    df_dict = {}
+    base_df = prices.loc[:, ["date", *symbols]].copy()
+
+    elapsed_years = base_df["date"].diff().dt.days / 360
+    base_df["1% borrow"] = elapsed_years * -0.01
+
+    add_dividends(base_df, symbols, dividend_rows)
+
+    symbol_frames = {}
     for symbol in symbols:
         df = base_df[[symbol, f"{symbol} div"]].copy()
         df[f"{symbol} + div"] = df[symbol] + df[f"{symbol} div"]
@@ -80,15 +84,20 @@ def build_base_df(
         df[f"{symbol} + cum div"] = df[symbol] + df[f"{symbol} cum div"]
         df[f"{symbol} daily rtn"] = np.log(df[f"{symbol} + div"] / df[symbol].shift(1))
         df[f"{symbol} comm rtn"] = np.log((df[symbol] - COMM_PER_SH) / df[symbol])
-        df_dict[symbol] = df
+        symbol_frames[symbol] = df
 
-    ordered_symbols = tuple(sorted(
-        df_dict,
-        key=lambda symbol: df_dict[symbol][f"{symbol} + cum div"].iloc[-1],
-    ))
+    ordered_symbols = tuple(
+        sorted(
+            symbol_frames,
+            key=lambda symbol: symbol_frames[symbol][f"{symbol} + cum div"].iloc[-1],
+        )
+    )
 
     big_df = pd.concat(
-        [base_df[["date"]], *(df_dict[symbol] for symbol in ordered_symbols)],
+        [
+            base_df[["date", "1% borrow"]],
+            *(symbol_frames[symbol] for symbol in ordered_symbols),
+        ],
         axis=1,
     )
 
@@ -99,7 +108,7 @@ def calc_unit_prices(
     symbols: tuple[str, ...],
     df: pd.DataFrame,
 ) -> pd.DataFrame:
-    
+
     anchor = symbols[-1]
 
     for symbol in symbols:
@@ -117,16 +126,15 @@ def calc_unit_prices(
 def calc_indicator(
     symbols: tuple[str, ...],
     df: pd.DataFrame,
+    threshold: float,
 ) -> pd.DataFrame:
-    
+    df = df.copy()
     unit_cols = [f"{symbol} unit" for symbol in symbols]
     rank_cols = [f"{symbol} rank" for symbol in symbols]
     units = df[unit_cols]
     valid = units.notna().any(axis=1)
 
-    df[rank_cols] = units.rank(
-        axis=1, method="max", ascending=False
-    ).to_numpy()
+    df[rank_cols] = units.rank(axis=1, method="max", ascending=False).to_numpy()
 
     df["max unit sym"] = pd.Series(pd.NA, index=df.index, dtype="string")
     df["min unit sym"] = pd.Series(pd.NA, index=df.index, dtype="string")
@@ -140,21 +148,19 @@ def calc_indicator(
 
     df["max unit price"] = units.max(axis=1)
     df["min unit price"] = units.min(axis=1)
-    df["unit range pct"] = np.log(
-        df["max unit price"] / df["min unit price"]
-    )
+    df["unit range pct"] = np.log(df["max unit price"] / df["min unit price"])
 
-    threshold = df["unit range pct"].quantile(1 - INDICATOR_THRESHOLD)
-    df["indicator"] = df["unit range pct"] > threshold
+    cutoff = df["unit range pct"].quantile(1 - threshold)
+    df["indicator"] = df["unit range pct"] > cutoff
 
     return df
 
 
-def determine_positions(
+def determine_eod_positions(
     symbols: tuple[str, ...],
     df: pd.DataFrame,
 ) -> pd.DataFrame:
-    
+
     unit_cols = [f"{sym} unit" for sym in symbols]
 
     prices = df[unit_cols].to_numpy()
@@ -186,13 +192,13 @@ def determine_positions(
     df["short sym"] = np.where(
         short_idx >= 0,
         symbols_array[np.maximum(short_idx, 0)],
-        None
+        None,
     )
 
     df["long sym"] = np.where(
         long_idx >= 0,
         symbols_array[np.maximum(long_idx, 0)],
-        None
+        None,
     )
 
     for symbol in symbols:
@@ -201,9 +207,6 @@ def determine_positions(
             [-1, 1],
             default=0,
         )
-
-    for symbol in symbols:
-        df[f"{symbol} bod pos"] = df[f"{symbol} eod pos"].shift(1)
 
     return df
 
@@ -214,7 +217,9 @@ def calc_rtns(
 ) -> pd.DataFrame:
 
     df = df.copy()
-    elapsed_years = df["date"].diff().dt.days / 360
+
+    for symbol in symbols:
+        df[f"{symbol} bod pos"] = df[f"{symbol} eod pos"].shift(1)
 
     # do not combine for statements so column order is preserved
     for symbol in symbols:
@@ -227,11 +232,9 @@ def calc_rtns(
     for symbol in symbols:
         df[f"{symbol} strat rtn"] = df[f"{symbol} bod pos"] * df[f"{symbol} daily rtn"]
 
-    for symbol in symbols:
-        df[f"{symbol} borrow"] = (
-            (df[f"{symbol} bod pos"].shift(1) == -1) *
-            elapsed_years * 0.01
-        )
+    for symbol in symbols: 
+        df[f"{symbol} borrow"] = df[f"{symbol} bod pos"].shift(1).eq(-1) * df["1% borrow"]
+        
 
     for symbol in symbols:
         df[f"{symbol} tot strat rtn"] = (
@@ -244,7 +247,6 @@ def calc_rtns(
     return df
 
 
-
 def main() -> None:
 
     xlsx_folder = Path(r"C:\Users\micha\OneDrive\My Trading Data")
@@ -254,9 +256,7 @@ def main() -> None:
         raise FileNotFoundError(f"Template does not exist: {template_file}")
 
     prices = pd.read_csv(PRICES_PATH, parse_dates=["date"])
-    prices = prices.loc[
-        prices["date"].between(START_DATE, END_DATE)
-    ].copy()
+    prices = prices.loc[prices["date"].between(START_DATE, END_DATE)].copy()
 
     dividends = read_excel_table(
         DATABASE_PATH,
@@ -267,33 +267,35 @@ def main() -> None:
 
     with xw.App(visible=True, add_book=False) as app:
         for symbols in SYMBOL_GROUPS:
-            current = tuple(symbol.upper() for symbol in symbols)
-            current_name = "_".join(current)
-
-            print(f"Processing: {current_name}", flush=True)
-            ordered_symbols, df = build_base_df(prices, dividends, current)
-            df = calc_unit_prices(ordered_symbols, df)
-
-            
-            df = calc_indicator(ordered_symbols, df)
-            df = determine_positions(ordered_symbols, df)
-            df = calc_rtns(ordered_symbols, df)
-
-            wb = app.books.open(str(template_file))
+            workbook = app.books.open(str(template_file))
             try:
-                wb.sheets["input"].range("A1").options(
-                    index=False,
-                    header=True,
-                ).value = df
+                current_symbols = tuple(symbol.upper() for symbol in symbols)
+                current_name = "_".join(current_symbols)
 
-                app.calculate()
+                print(f"Processing: {current_name}", flush=True)
+                ordered_symbols, base_df = build_base_df(
+                    prices, dividends, current_symbols
+                )
+                base_df = calc_unit_prices(ordered_symbols, base_df)
 
-                filename = "_".join(ordered_symbols) + ".xlsx"
+                for threshold in INDICATOR_THRESHOLDS:
+                    threshold_df = calc_indicator(ordered_symbols, base_df, threshold)
+                    threshold_df = determine_eod_positions(ordered_symbols, threshold_df)
+                    threshold_df = calc_rtns(ordered_symbols, threshold_df)
+
+                    workbook.sheets[f"{threshold:.0%}"].range("A1").options(
+                        index=False,
+                        header=True,
+                    ).value = threshold_df
+
+                    app.calculate()
+
+                filename = f"{'_'.join(ordered_symbols)}_{MOVING_AVERAGE_WINDOW}.xlsx"
                 output_file = xlsx_folder / filename
-                wb.save(str(output_file))
+                workbook.save(str(output_file))
                 print(f"Saved: {output_file}", flush=True)
             finally:
-                wb.close()
+                workbook.close()
 
 
 if __name__ == "__main__":
