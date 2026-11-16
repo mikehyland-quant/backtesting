@@ -5,9 +5,9 @@ import pandas as pd
 import xlwings as xw
 
 
-PRICES_FILENAME = "NOV 5.csv"
+PRICES_FILENAME = "sectors.csv"
 SYMBOL_GROUPS = (
-    ("VGT", "XLK", "IYW", "FTEC"),
+    ("FIDU", "XLI", "VIS"),
 )
 
 MOVING_AVERAGE_WINDOW = 20

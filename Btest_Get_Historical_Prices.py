@@ -4,17 +4,23 @@
 
 symbols = [
 
-'VPU',
-'IDU',
-'FUTY',
-'XLU'
+'KBE', 'KRE',
+'PPA', 'ITA',
+'PKB', 'ITB',
+'SOXX', 'SMH',
+'IHE', 'PJP',
+'PXE', 'IEO',
+'IEZ', 'OIH',
+'FTXR', 'IYT',
+'IBB', 'BBH',
+
 
 ]
 
 # conIds = [320106059, 641561653]
 
 # filename = f"{'_'.join(symbols)}.csv"
-filename = "NOV 5" + ".csv"
+filename = "industry" + ".csv"
 output_directory_name = "historical prices"
 
 # ============================================================

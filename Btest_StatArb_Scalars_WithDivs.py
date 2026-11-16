@@ -4,19 +4,27 @@ import numpy as np
 import pandas as pd
 import xlwings as xw
 
-SYMBOL_GROUPS = (  # Each pair is (lo/non-anchor, hi/anchor).
+SYMBOL_GROUPS = (  # Each pair is (lo/non-anchor, hi/anchor).  
 
-('KBE','KRE'),
+('KBE', 'KRE'),
+('PPA', 'ITA'),
+('PKB', 'ITB'),
+('SOXX', 'SMH'),
+('IHE', 'PJP'),
+('PXE', 'IEO'),
+('IEZ', 'OIH'),
+('FTXR', 'IYT'),
+('IBB', 'BBH'),
 
 )
 
 
-PRICES_FILENAME = "NOV 3.csv"
+PRICES_FILENAME = "industry" + ".csv"
 
 START_DATE = pd.Timestamp("2026-01-01")
-END_DATE = pd.Timestamp("2026-10-25")
-MOVING_AVERAGE_WINDOWS = (10, 20)
-DIVIDEND_MONTHS = range(1, 10)
+END_DATE = pd.Timestamp("2026-11-01")
+MOVING_AVERAGE_WINDOWS = [10, 20]
+DIVIDEND_MONTHS = range(1, END_DATE.month + 1)
 
 COMM_PER_SH = 0.0055
 
@@ -190,7 +198,7 @@ def build_backtest(
 
 def main() -> None:
     xlsx_folder = Path(r"C:\Users\micha\OneDrive\My Trading Data")
-    template_file = xlsx_folder / "TEMPLATE.xlsx"
+    template_file = xlsx_folder / "TEMPLATE 3.xlsx"
 
     if not template_file.is_file():
         raise FileNotFoundError(f"Template does not exist: {template_file}")
@@ -224,7 +232,8 @@ def main() -> None:
 
                 app.calculate()
 
-                output_file = xlsx_folder / f"{pair_name}2.xlsx"
+                #output_file = xlsx_folder / f"{pair_name} 3.xlsx"
+                output_file = Path(r"C:\Users\micha\Documents") / f"{pair_name} 3.xlsx"
                 wb.save(str(output_file))
                 print(f"Saved: {output_file}", flush=True)
             finally:
